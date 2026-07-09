@@ -332,7 +332,13 @@
     });
   });
 
-  /* ---------- Hero entrance timeline (cinematic) ---------- */
+  /* ---------- Hero entrance timeline (cinematic) ----------
+     Note: set the hidden start state with gsap.set + animate with .to (not
+     fromTo). A fromTo start state gets re-applied by ScrollTrigger.refresh()
+     (fired on load and fonts.ready), which was snapping the title lines back
+     behind their mask after they had animated in. */
+  const heroLines = gsap.utils.toArray(".hero__title .line");
+  gsap.set(heroLines, { yPercent: 120, opacity: 0, filter: "blur(8px)" });
   const tl = gsap.timeline({ defaults: { ease: "power3.out", duration: 0.9 } });
   tl.from(".hero__media", { opacity: 0, duration: 1.4, ease: "power2.out" }, 0)
     .fromTo(
@@ -341,10 +347,9 @@
       { opacity: 1, y: 0, duration: 0.6 },
       0.3
     )
-    .fromTo(
-      ".hero__title .line",
-      { yPercent: 122, filter: "blur(8px)" },
-      { yPercent: 0, filter: "blur(0px)", duration: 1.15, stagger: 0.16, ease: "power4.out" },
+    .to(
+      heroLines,
+      { yPercent: 0, opacity: 1, filter: "blur(0px)", duration: 1.15, stagger: 0.16, ease: "power4.out" },
       0.4
     )
     .fromTo(
@@ -683,4 +688,18 @@
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => ScrollTrigger.refresh());
   }
+
+  /* Failsafe: guarantee the hero headline is on screen even if a late
+     refresh or timing hiccup leaves the lines behind their mask. */
+  const ensureHeroVisible = () => {
+    heroLines.forEach((l) => {
+      const hidden =
+        Math.abs(gsap.getProperty(l, "yPercent")) > 2 ||
+        parseFloat(getComputedStyle(l).opacity) < 0.9;
+      if (hidden) {
+        gsap.to(l, { yPercent: 0, opacity: 1, filter: "blur(0px)", duration: 0.4, overwrite: true });
+      }
+    });
+  };
+  window.addEventListener("load", () => setTimeout(ensureHeroVisible, 2200));
 })();

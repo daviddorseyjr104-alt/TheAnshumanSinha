@@ -1142,7 +1142,9 @@ html.lenis, html.lenis body { height: auto; }
   padding-bottom: 0.08em; /* room for italic descenders while masking */
 }
 .line { display: block; }
-.js-motion .hero__title .line { transform: translateY(115%); }
+/* Hide with opacity, not transform: a CSS transform here poisons GSAP's
+   transform baseline and stops the yPercent reveal from taking effect. */
+.js-motion .hero__title .line { opacity: 0; }
 
 /* Hero: elements start hidden so there is no flash before the load timeline */
 .js-motion [data-hero="eyebrow"],
