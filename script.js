@@ -391,21 +391,43 @@
     );
   });
 
-  /* ---------- Batched scroll reveals (everything except stats) ---------- */
+  /* ---------- Scroll reveals ----------
+     Driven by IntersectionObserver, not ScrollTrigger.batch: IO reacts to
+     real element geometry, so it is immune to the pinned process section and
+     any late layout shifts that were leaving content stuck at opacity 0. */
   const revealTargets = gsap.utils.toArray(".reveal:not(.stat)");
   gsap.set(revealTargets, { opacity: 0, y: 34 });
-  ScrollTrigger.batch(revealTargets, {
-    start: "top 88%",
-    onEnter: (batch) =>
-      gsap.to(batch, {
-        opacity: 1,
-        y: 0,
-        duration: 1.0,
-        ease: "power4.out",
-        stagger: { each: 0.1, ease: "power1.out" },
-        overwrite: true,
-      }),
-  });
+  const showReveal = (el) =>
+    gsap.to(el, { opacity: 1, y: 0, duration: 1.0, ease: "power4.out", overwrite: true });
+
+  if ("IntersectionObserver" in window) {
+    const revealIO = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          showReveal(entry.target);
+          revealIO.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.05 }
+    );
+    revealTargets.forEach((el) => revealIO.observe(el));
+  } else {
+    gsap.set(revealTargets, { opacity: 1, y: 0 });
+  }
+
+  /* Failsafe: content must never stay invisible. Shortly after load, force
+     anything that is in or above the viewport but still hidden into view. */
+  const revealFailsafe = () => {
+    revealTargets.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight * 0.98 && rect.bottom > 0;
+      if (inView && parseFloat(getComputedStyle(el).opacity) < 0.05) {
+        gsap.set(el, { opacity: 1, y: 0 });
+      }
+    });
+  };
+  window.addEventListener("load", () => setTimeout(revealFailsafe, 450));
 
   /* ---------- Stats: rule draw + blur/scale-in + count up ---------- */
   const runCounter = (el) => {
